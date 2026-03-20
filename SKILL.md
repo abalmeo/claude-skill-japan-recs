@@ -4,40 +4,47 @@ description: Research restaurants, activities, and places to visit in a specific
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Bash, Agent, WebSearch, WebFetch, Write
-argument-hint: [area] [--csv | --sheet SPREADSHEET_ID]
+argument-hint: [area] [--activities | --both] [--csv | --sheet SPREADSHEET_ID]
 ---
 
 # Japan Travel Research & Recommendation Builder
 
-Research top recommendations for a location in Japan and output the results in your preferred format.
+Research top recommendations for a location in Japan and output the results in your preferred format. Supports both restaurant research and activity/experience research.
 
 ## Arguments
 
 ```
-/japan-recs Shinjuku                    → Markdown output (default, no setup required)
-/japan-recs Shinjuku --csv              → CSV file output
-/japan-recs Shinjuku --sheet SHEET_ID   → Google Sheets output (requires gws CLI)
+/japan-recs Shinjuku                              → Restaurants only, Markdown (default)
+/japan-recs Shinjuku --activities                  → Activities only
+/japan-recs Shinjuku --both                        → Restaurants + Activities
+/japan-recs Tokyo --activities --sheet SHEET_ID    → Activities to Google Sheets
+/japan-recs Shinjuku --csv                         → CSV file output
+/japan-recs Shinjuku --sheet SHEET_ID              → Google Sheets output (requires gws CLI)
 ```
 
 - **First argument**: Area or neighborhood in Japan (required)
+- `--activities`: Research activities and experiences instead of restaurants
+- `--both`: Research both restaurants and activities (outputs as separate tabs/files)
 - `--csv`: Output as CSV file
 - `--sheet SPREADSHEET_ID`: Output to a Google Sheet tab (requires `gws` CLI to be installed and authenticated)
 
+If no type flag is provided, defaults to restaurants only.
 If no output flag is provided, defaults to Markdown.
 
 ## Workflow
 
 ### Step 1: Research
 
-Spawn an Agent to research across multiple sources. The agent should search for:
+Spawn **parallel Agents** (one per topic area) to research across multiple sources simultaneously. Each agent should search:
 - Reddit (r/JapanTravel, r/Tokyo, r/JapanFood, r/japanlife)
 - Google Reviews / TripAdvisor ratings and comments
-- Tabelog (Japan's top restaurant review site)
-- Food blogs (Ramen Adventures, Food Sake Tokyo, ByFood, etc.)
+- Tabelog (Japan's top restaurant review site — for restaurants)
+- Food blogs (Ramen Adventures, Food Sake Tokyo, ByFood, etc. — for restaurants)
 - TimeOut Tokyo, SAVOR JAPAN, Japan Food Guide
+- Viator, Klook (for activities/experiences)
 - Social media recommendations
 
-For each place found, gather:
+#### For restaurant research, gather per place:
 - **Name** (English + Japanese if available)
 - **Category** (Ramen, Sushi, Yakiniku, Izakaya, Soba, Tonkatsu, Teppanyaki, Fine Dining, Desserts & Sweets, Cafe, etc.)
 - **What it's known for** (signature dish or experience)
@@ -49,6 +56,25 @@ For each place found, gather:
 - **Reservation/review link** (Tabelog, TripAdvisor, or official site URL — whichever is most useful for booking or reading reviews)
 
 Prioritize places that appear across multiple sources. Aim for 15-25 recommendations with a mix of budget, mid-range, and splurge options across different food categories.
+
+#### For activity research, gather per place:
+- **Name** (English + Japanese if available)
+- **Category** (see Activity Categories below)
+- **What it's known for** (1-line summary of the experience)
+- **Price range** (entry fees, typical spend, with yen amounts)
+- **Address** (full address or area if it's a district/neighborhood)
+- **Whether reservations/tickets are needed** (and how far in advance)
+- **Detailed notes** (what Reddit/forums say, tips, best time to visit, how long to spend, group-friendliness, seasonal relevance)
+- **Google Maps link** (constructed search URL)
+- **Review/website link** (TripAdvisor, official site, or booking platform)
+
+**Parallelization strategy for activities**: Spawn separate agents for each topic cluster to maximize research speed:
+1. **Nightlife agent**: Clubs, themed bars, karaoke
+2. **Cultural agent**: Temples, shrines, museums, parks/gardens
+3. **Adventure agent**: Gaming/arcades, unique experiences (go-karts, onsen, sumo), sports/outdoors
+4. **Shopping agent**: Shopping districts, markets, specialty stores
+
+Aim for 4-6 places per sub-category, 50-70 total activities.
 
 ### Step 2: Get Addresses
 
@@ -62,7 +88,8 @@ Output the results based on the user's chosen format:
 
 #### Option A: Markdown (default)
 
-Write to `./japan-recs/[Area] Restaurants.md` in the current working directory.
+**Restaurants** → Write to `./japan-recs/[Area] Restaurants.md`
+**Activities** → Write to `./japan-recs/[Area] Activities.md`
 
 Format the file as:
 
@@ -82,17 +109,20 @@ Format the file as:
 ...
 ```
 
+For activities, use the same table structure but with the activity category headers and `Review/Website Link` instead of `Reservation/Review Link`.
+
 Leave the **Status** column empty — the user uses this to track bookings.
 
 ---
 
 #### Option B: CSV (`--csv`)
 
-Write to `./japan-recs/[Area] Restaurants.csv` in the current working directory.
+**Restaurants** → Write to `./japan-recs/[Area] Restaurants.csv`
+**Activities** → Write to `./japan-recs/[Area] Activities.csv`
 
-Columns: `Category,Name,Known For,Price,Address,Google Maps,Reservation/Review Link,Reservations,Status,Notes`
+Columns: `Category,Name,Known For,Price,Address,Google Maps,Review/Website Link,Reservations,Status,Notes`
 
-- Include the category emoji prefix in the Category column (e.g., "🍜 Ramen")
+- Include the category emoji prefix in the Category column (e.g., "🍜 Ramen" or "🎮 Gaming & Arcades")
 - Leave the Status column empty
 - Properly escape any commas or quotes in field values
 
@@ -102,31 +132,52 @@ Columns: `Category,Name,Known For,Price,Address,Google Maps,Reservation/Review L
 
 Use the `gws` CLI to write results to the provided spreadsheet.
 
-1. Create a new tab named after the area (e.g., "Shinjuku Restaurants")
+1. Create a new tab named after the area (e.g., "Shinjuku Restaurants" or "Tokyo Activities")
 2. Clear any existing data if the tab already exists
 3. Write data in this format:
 
 ```
-Row 1: [AREA NAME] RESTAURANT RECOMMENDATIONS
+Row 1: [AREA NAME] RESTAURANT RECOMMENDATIONS  (or ACTIVITIES & EXPERIENCES)
 Row 2: (blank)
 Row 3: [Category emoji] CATEGORY NAME
-Row 4: Name | Known For | Price | Address | Google Maps | Reservation/Review Link | Reservations | Status | Notes
+Row 4: Name | Known For | Price | Address | Google Maps | Review/Website Link | Reservations | Status | Notes
 Row 5+: Data rows
 (blank row)
 Row N: [Next category emoji] NEXT CATEGORY
-Row N+1: Name | Known For | Price | Address | Google Maps | Reservation/Review Link | Reservations | Status | Notes
+Row N+1: Name | Known For | Price | Address | Google Maps | Review/Website Link | Reservations | Status | Notes
 ...
 ```
 
 Leave the **Status** column empty.
 
+**For large datasets (50+ entries)**: Build the complete data array in a Python script, write to a temp JSON file, then pass it to gws in a single `values update` call. This is more reliable than constructing huge JSON strings inline in bash.
+
 ---
 
-### Category Emojis
+### Restaurant Category Emojis
 
 Ramen 🍜, Yakiniku 🥩, Sushi 🍣, Izakaya/Bars 🍺, Tonkatsu/Soba/Teishoku 🥢, Teppanyaki/Fine Dining 🔥, Desserts & Sweets 🍡, Cafe ☕, Other 🍽️
 
 **Always include a Desserts & Sweets section** (🍡) — research dessert spots, bakeries, mochi shops, kakigori, parfaits, taiyaki, crepes, matcha desserts, etc. specific to the area.
+
+### Activity Category Emojis
+
+| Emoji | Category | What to include |
+|-------|----------|-----------------|
+| 🎪 | Clubs & Nightlife | Nightclubs, dance venues, live music |
+| 🍸 | Unique Nightlife / Themed | Themed bars, comedy izakayas, bar districts (Golden Gai, Omoide Yokocho), quirky venues |
+| 🎤 | Karaoke | Karaoke chains and premium options with party plans |
+| ⛩️ | Temples & Shrines | Major and hidden-gem temples and shrines |
+| 🎨 | Museums & Galleries | Art museums, cultural museums, immersive experiences (teamLab) |
+| 🌸 | Parks & Cherry Blossoms | Parks, gardens, seasonal viewing spots (cherry blossoms, autumn leaves) |
+| 🎮 | Gaming & Arcades | Arcades, retro game shops, VR experiences, entertainment complexes |
+| 🎯 | Unique Experiences | Go-karts, onsen/sento, sumo, sword experiences, market tours, capsule hotels, batting cages |
+| ⛰️ | Sports & Outdoors | Hiking, day trips, baseball games, cycling tours |
+| 🛍️ | Shopping Districts & Markets | Shopping neighborhoods, markets, specialty stores (knives, stationery, whisky) |
+
+**Adapt categories to the area**: Not all categories apply everywhere. A research query for "Shinjuku" might emphasize nightlife and karaoke, while "Kamakura" would focus on temples and outdoors. Include what's relevant.
+
+**Seasonal awareness**: If the user mentions a travel month, tailor recommendations accordingly (cherry blossoms in March-April, autumn leaves in November, festivals, etc.).
 
 ### Links
 

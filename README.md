@@ -1,10 +1,32 @@
 # japan-recs
 
-A [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skill that researches Japan restaurant recommendations from Reddit, Tabelog, TripAdvisor & more, then outputs to Google Sheets, CSV, or Markdown.
+[Claude Code](https://docs.anthropic.com/en/docs/claude-code) skills for planning Japan trips — from single-area restaurant research to fully automated multi-neighborhood trip planning.
 
 [![Claude Code Compatible](https://img.shields.io/badge/Claude_Code-Skill-blue)](https://docs.anthropic.com/en/docs/claude-code)
 
-## What it does
+## Skills
+
+### `/japan-trip` — Full Trip Planner (NEW)
+
+Give it a city and duration, and it automatically:
+
+1. **Imports your existing picks** (optional) — bring a CSV, Google Sheet, Notion page, or any file with places you already want to visit
+2. Discovers which neighborhoods to cover based on your trip length, interests, and existing picks
+3. Researches restaurants **and** activities (temples, shopping, nightlife, markets, experiences) for each area in parallel
+4. **Layers new recommendations around your picks** — fills gaps in categories, price ranges, and neighborhoods you haven't covered yet
+
+```
+/japan-trip Tokyo 7 days
+/japan-trip Tokyo 7 days --from my-saved-places.csv        # Start from your picks
+/japan-trip Tokyo 7 days --from GOOGLE_SHEET_ID            # Import from Google Sheet
+/japan-trip Tokyo 7 days --from https://notion.so/...      # Import from Notion
+/japan-trip Osaka 5 days --interests "ramen, nightlife, vintage shopping"
+/japan-trip Kyoto 3 days --sheet SPREADSHEET_ID
+```
+
+Your existing picks are marked with ★ in the output so you can tell them apart from new recommendations.
+
+### `/japan-recs` — Single Area Restaurant Research
 
 Give it an area in Japan, and it will:
 
@@ -19,7 +41,9 @@ Give it an area in Japan, and it will:
 git clone https://github.com/abalmeo/claude-skill-japan-recs.git ~/.claude/skills/japan-recs
 ```
 
-Or manually copy `SKILL.md` to `~/.claude/skills/japan-recs/SKILL.md`.
+This installs both `/japan-recs` and `/japan-trip`. You can also manually copy individual skill files:
+- `SKILL.md` → `~/.claude/skills/japan-recs/SKILL.md` (for `/japan-recs`)
+- `skills/japan-trip/SKILL.md` → `~/.claude/skills/japan-trip/SKILL.md` (for `/japan-trip`)
 
 ## Prerequisites
 
@@ -28,26 +52,23 @@ Or manually copy `SKILL.md` to `~/.claude/skills/japan-recs/SKILL.md`.
 
 ## Usage
 
-### Markdown (default — no setup required)
+### `/japan-trip` — Full Trip Planner
 
 ```
-/japan-recs Shinjuku
+/japan-trip Tokyo 7 days                                              # Markdown
+/japan-trip Osaka 5 days --csv                                        # CSV
+/japan-trip Kyoto 3 days --sheet SHEET_ID                             # Google Sheets
+/japan-trip Tokyo 10 days --interests "ramen, nightlife, vintage shopping"  # With interests
 ```
 
-Creates `./japan-recs/Shinjuku Restaurants.md` with formatted tables.
+Outputs to `./japan-trip/[City] Trip Plan.md` (or CSV/Sheets). Automatically selects neighborhoods based on duration — more days means more areas covered.
 
-### CSV
-
-```
-/japan-recs Shinjuku --csv
-```
-
-Creates `./japan-recs/Shinjuku Restaurants.csv`.
-
-### Google Sheets
+### `/japan-recs` — Single Area
 
 ```
-/japan-recs Shinjuku --sheet 1qwgFBNKK1RsYmkkt06tzLo0B21ouD49o78Pt8YWXa0E
+/japan-recs Shinjuku                                                  # Markdown
+/japan-recs Shinjuku --csv                                            # CSV
+/japan-recs Shinjuku --sheet 1qwgFBNKK1RsYmkkt06tzLo0B21ouD49o78Pt8YWXa0E  # Google Sheets
 ```
 
 Creates a new tab "Shinjuku Restaurants" in the specified spreadsheet.
